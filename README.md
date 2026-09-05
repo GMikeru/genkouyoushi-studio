@@ -2,6 +2,10 @@
 
 A browser-based worksheet generator for Japanese calligraphy practice (原稿用紙). Add vocabulary, configure repetition patterns, and export print-ready multi-page PDFs — no server required.
 
+**[Live Demo](https://gmikeru.github.io/genkouyoushi-studio/)**
+
+![Genkouyoushi Studio screenshot](screenshot.png)
+
 ## Features
 
 - **Live preview** — the grid updates instantly as you change settings
