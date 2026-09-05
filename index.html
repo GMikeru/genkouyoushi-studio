@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NippoWord - Genkouyoushi Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="generator.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="hanko">原稿</span>
+                <div class="title-wrap">
+                    <h1>NippoWord</h1>
+                    <p class="subtitle">Genkouyoushi Studio</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="content">
+            <aside class="controls-panel panel-card">
+                <form id="genForm">
+                    <!-- PRESETS -->
+                    <div class="form-section border-b">
+                        <div class="preset-buttons">
+                            <button type="button" class="preset-btn" data-preset="small">Small Grid</button>
+                            <button type="button" class="preset-btn active" data-preset="medium">Medium Grid</button>
+                            <button type="button" class="preset-btn" data-preset="large">Large Grid</button>
+                        </div>
+                    </div>
+
+                    <!-- WORD MANAGER -->
+                    <div class="word-manager-container">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>Practice Words</h3>
+                            <button type="button" id="addWordBtn" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">+ Add Word</button>
+                        </div>
+                        <div class="words-list" id="wordsList">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <div class="form-section border-b" style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label for="direction">Layout Direction</label>
+                                <select id="direction">
+                                    <option value="horizontal">Horizontal (LTR)</option>
+                                    <option value="vertical">Vertical (Traditional)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>&nbsp;</label>
+                                <button type="button" id="toggleAdvancedBtn" class="btn-secondary">Advanced Settings</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ADVANCED SETTINGS -->
+                    <div id="advancedSettings" class="hidden">
+                        <div class="form-section border-b">
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label for="columns">Columns</label>
+                                    <input type="number" id="columns" value="15" min="1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="rows">Rows</label>
+                                    <input type="number" id="rows" value="10" min="1">
+                                </div>
+                            </div>
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label for="width">Width (in)</label>
+                                    <input type="number" id="width" value="11" step="0.1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="height">Height (in)</label>
+                                    <input type="number" id="height" value="8.5" step="0.1">
+                                </div>
+                            </div>
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label for="marginTB">Margin T/B</label>
+                                    <input type="number" id="marginTB" value="0.75" step="0.1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="marginLR">Margin L/R</label>
+                                    <input type="number" id="marginLR" value="0.75" step="0.1">
+                                </div>
+                            </div>
+                            <div class="input-group toggle-group" style="margin-top: 0.2rem;">
+                                <label for="furigana">Furigana Boxes</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="furigana">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="export-row">
+                        <button type="button" id="downloadBtn" class="btn-primary">
+                            Export to PDF
+                        </button>
+                    </div>
+                </form>
+            </aside>
+
+            <section class="preview-panel panel-card">
+                <div id="paperContainer">
+                    <!-- Canvases injected by JS -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const generator = new GenkouyoushiGenerator('paperContainer');
+        
+        // Form elements
+        const form = document.getElementById('genForm');
+        const advancedBtn = document.getElementById('toggleAdvancedBtn');
+        const advancedSettings = document.getElementById('advancedSettings');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const wordsList = document.getElementById('wordsList');
+        const addWordBtn = document.getElementById('addWordBtn');
+
+        let wordItems = [];
+
+        function addWordItem(text = "", s = 1, t = 2, e = 1) {
+            const id = Date.now() + Math.random().toString(36).substr(2, 9);
+            const item = { id, text, s, t, e };
+            wordItems.push(item);
+            renderWordsList();
+            updatePreview();
+        }
+
+        function removeWordItem(id) {
+            wordItems = wordItems.filter(w => w.id !== id);
+            renderWordsList();
+            updatePreview();
+        }
+
+        function renderWordsList() {
+            wordsList.innerHTML = '';
+            wordItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'word-item';
+                div.innerHTML = `
+                    <input type="text" placeholder="Word (e.g. ありがとう)" value="${item.text}" oninput="updateWord('${item.id}', 'text', this.value)">
+                    <div class="counter-group">
+                        <label>S</label>
+                        <input type="number" min="0" value="${item.s}" onchange="updateWord('${item.id}', 's', this.value)">
+                    </div>
+                    <div class="counter-group">
+                        <label>T</label>
+                        <input type="number" min="0" value="${item.t}" onchange="updateWord('${item.id}', 't', this.value)">
+                    </div>
+                    <div class="counter-group">
+                        <label>E</label>
+                        <input type="number" min="0" value="${item.e}" onchange="updateWord('${item.id}', 'e', this.value)">
+                    </div>
+                    <button type="button" class="btn-remove" onclick="removeWordItem('${item.id}')">&times;</button>
+                `;
+                wordsList.appendChild(div);
+            });
+        }
+
+        window.updateWord = function(id, field, value) {
+            const item = wordItems.find(w => w.id === id);
+            if (item) {
+                item[field] = field === 'text' ? value : parseInt(value, 10) || 0;
+                updatePreview();
+            }
+        };
+
+        addWordBtn.addEventListener('click', () => addWordItem());
+
+        // Initialize with default words
+        addWordItem("おはようございます", 1, 1, 1);
+        addWordItem("こんにちは", 1, 1, 1);
+
+        // Toggle advanced settings
+        advancedBtn.addEventListener('click', () => {
+            advancedSettings.classList.toggle('hidden');
+        });
+
+        // Handle Presets
+        const presets = {
+            small: { columns: 25, rows: 15 },
+            medium: { columns: 15, rows: 10 },
+            large: { columns: 10, rows: 6 }
+        };
+
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                presetBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const p = presets[btn.dataset.preset];
+                document.getElementById('columns').value = p.columns;
+                document.getElementById('rows').value = p.rows;
+                updatePreview();
+            });
+        });
+
+        function getConfig(dpi) {
+            return {
+                dpi: dpi,
+                widthInches: parseFloat(document.getElementById('width').value),
+                heightInches: parseFloat(document.getElementById('height').value),
+                columns: parseInt(document.getElementById('columns').value, 10),
+                rows: parseInt(document.getElementById('rows').value, 10),
+                marginTop: parseFloat(document.getElementById('marginTB').value),
+                marginBottom: parseFloat(document.getElementById('marginTB').value),
+                marginLeft: parseFloat(document.getElementById('marginLR').value),
+                marginRight: parseFloat(document.getElementById('marginLR').value),
+                furigana: document.getElementById('furigana').checked,
+                direction: document.getElementById('direction').value,
+                words: wordItems.map(w => ({ text: w.text, solid: w.s, trace: w.t, empty: w.e }))
+            };
+        }
+
+        function updatePreview() {
+            generator.render(getConfig(150)); // Fast preview
+        }
+
+        // Add event listeners for Live Preview on non-word inputs
+        const staticInputs = form.querySelectorAll('#advancedSettings input, #direction');
+        staticInputs.forEach(input => {
+            input.addEventListener('input', () => updatePreview());
+            input.addEventListener('change', () => updatePreview());
+        });
+
+        // Download functionality
+        downloadBtn.addEventListener('click', () => {
+            const wInches = parseFloat(document.getElementById('width').value);
+            const hInches = parseFloat(document.getElementById('height').value);
+            
+            // Re-render in high resolution (300 DPI for print)
+            generator.render(getConfig(300));
+            
+            const canvases = generator.getCanvases();
+            if (canvases.length === 0) return;
+
+            const { jsPDF } = window.jspdf;
+            const orientation = wInches > hInches ? 'landscape' : 'portrait';
+            const doc = new jsPDF({
+                orientation: orientation,
+                unit: 'in',
+                format: [wInches, hInches]
+            });
+            
+            canvases.forEach((canvas, index) => {
+                if (index > 0) doc.addPage();
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                doc.addImage(imgData, 'JPEG', 0, 0, wInches, hInches);
+            });
+            
+            doc.save('genkouyoushi_practice.pdf');
+
+            // Restore preview resolution
+            updatePreview();
+        });
+
+        // Initial render
+        window.addEventListener('load', () => {
+            setTimeout(updatePreview, 100);
+        });
+    </script>
+</body>
+</html>
